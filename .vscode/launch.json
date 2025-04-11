@@ -1,0 +1,22 @@
+{
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:a-monitor}",
+      "name": "Debug a-monitor",
+      "program": "${workspaceFolder:a-monitor}/.build/debug/a-monitor",
+      "preLaunchTask": "swift: Build Debug a-monitor"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:a-monitor}",
+      "name": "Release a-monitor",
+      "program": "${workspaceFolder:a-monitor}/.build/release/a-monitor",
+      "preLaunchTask": "swift: Build Release a-monitor"
+    }
+  ]
+}

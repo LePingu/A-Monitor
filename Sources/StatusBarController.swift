@@ -3,24 +3,40 @@ import Cocoa
 @MainActor
 class StatusBarController {
     private var statusBarItem: NSStatusItem!
+    private var cpuStatusItem: NSStatusItem!
     private var timer: Timer?
 
     init() {
-        setupStatusBarItem()
-        startMemoryMonitoring()
+        setupStatusBarItems()
+        startMonitoring()
     }
 
     deinit {
         MemoryMonitor.shared.stopMonitoring()
+        CpuMonitor.shared.stopMonitoring()
     }
 
-    private func setupStatusBarItem() {
+    private func setupStatusBarItems() {
+        // Memory status item
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusBarItem.button {
-            button.title = "Loading..."
+            button.title = "Mem: Loading..."
             button.action = #selector(statusBarButtonClicked)
         }
-        setupMenu()
+        setupMemoryMenu()
+
+        // CPU status item
+        cpuStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = cpuStatusItem.button {
+            button.title = "CPU: Loading..."
+            button.action = #selector(cpuStatusBarButtonClicked)
+        }
+        setupCpuMenu()
+    }
+
+    private func startMonitoring() {
+        startMemoryMonitoring()
+        startCpuMonitoring()
     }
 
     private func startMemoryMonitoring() {
@@ -28,12 +44,22 @@ class StatusBarController {
             guard let strongSelf = self, let button = strongSelf.statusBarItem.button else {
                 return
             }
-            button.title = memoryInfo
+            button.title = "Mem: " + memoryInfo
         })
         MemoryMonitor.shared.startMonitoring()
     }
 
-    private func setupMenu() {
+    private func startCpuMonitoring() {
+        CpuMonitor.shared.setOnCpuUpdate(callback: { [weak self] cpuInfo in
+            guard let strongSelf = self, let button = strongSelf.cpuStatusItem.button else {
+                return
+            }
+            button.title = "CPU: " + cpuInfo
+        })
+        CpuMonitor.shared.startMonitoring()
+    }
+
+    private func setupMemoryMenu() {
         let menu = NSMenu()
         menu.addItem(
             NSMenuItem(
@@ -41,12 +67,24 @@ class StatusBarController {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(
             NSMenuItem(
-                title: "Refresh Now", action: #selector(refreshMemoryInfo), keyEquivalent: "R"))
+                title: "Refresh", action: #selector(refreshMemoryInfo), keyEquivalent: "R"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(
             NSMenuItem(
                 title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusBarItem.menu = menu
+    }
+
+    private func setupCpuMenu() {
+        let menu = NSMenu()
+        menu.addItem(
+            NSMenuItem(
+                title: "CPU Details", action: #selector(showCpuDetails), keyEquivalent: "C"))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(
+            NSMenuItem(
+                title: "Refresh", action: #selector(refreshCpuInfo), keyEquivalent: "U"))
+        cpuStatusItem.menu = menu
     }
 
     @objc private func statusBarButtonClicked() {
@@ -55,10 +93,20 @@ class StatusBarController {
         }
     }
 
+    @objc private func cpuStatusBarButtonClicked() {
+        if let button = cpuStatusItem.button {
+            button.performClick(nil)
+        }
+    }
+
     @objc private func refreshMemoryInfo() {
-        // Force a refresh of memory info
         MemoryMonitor.shared.stopMonitoring()
         MemoryMonitor.shared.startMonitoring()
+    }
+
+    @objc private func refreshCpuInfo() {
+        CpuMonitor.shared.stopMonitoring()
+        CpuMonitor.shared.startMonitoring()
     }
 
     @objc private func showMemoryDetails() {
@@ -75,6 +123,14 @@ class StatusBarController {
                 Usage: %.1f%%
                 """, usedGB, totalGB, percentUsed)
 
+        NotificationManager.shared.showNotification(title: title, subtitle: nil, body: body)
+    }
+
+    @objc private func showCpuDetails() {
+        let cpuUsage = CpuMonitor.shared.getCurrentCpuUsage()
+        let title = "CPU Usage Details"
+        let body = String(format: "Current CPU Usage: %.1f%%", cpuUsage)
+        
         NotificationManager.shared.showNotification(title: title, subtitle: nil, body: body)
     }
 }
